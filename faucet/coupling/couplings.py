@@ -99,10 +99,10 @@ class Coupling(object):
     def build(self):
         pass
 
-    def dispatch(self, message):
+    def dispatch(self, message, on_send=None):
         pass
 
-    def receive(self, uri):
+    def receive(self, uri, on_receive):
         pass
 
     def complete(self):
@@ -570,13 +570,13 @@ class CouplingFactory(object):
             return config
 
 
-    def build(self, config, uri, role, on_receive):
+    def build(self, config, uri, role):
         config = self.get_config_by_role(config, role)
         logging.info("Building Dispatcher %s" % config.dispatch_type)
         if config.dispatch_type == "rq":
             return RQCoupling(config, uri, role)
         elif config.dispatch_type == "amqp":
-            return AMQPCoupling(config, uri, role,on_receive)
+            return AMQPCoupling(config, uri, role)
         elif config.dispatch_type == "gearman":
             return GearmanCoupling(config, uri, role)
         elif config.dispatch_type == "beanstalk":
