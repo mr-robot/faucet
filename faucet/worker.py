@@ -6,7 +6,7 @@ from multiprocessing import Process
 
 import os
 from luigi import scheduler, worker
-from faucet.main import MGINode, Application
+from faucet.main import MGINode, Application, FullStackBuilder
 
 
 def sigterm_handler(_signo, _stack_frame):

@@ -1,6 +1,7 @@
 __author__ = 'mr-robot'
 
 from coupling.couplings import CouplingFactory
+from middleware import AbstractMiddlewareFactory
 
 class Manager(object):
 
@@ -167,7 +168,7 @@ class Handler(object):
         return None
 
     def send(self, env, message):
-        return self.dispatch(env, message)
+        self.dispatch(env, message)
 
     def complete(self, env, message):
         return self.application.complete(message)
@@ -192,3 +193,15 @@ class MGINodeFactory(object):
 
     def build(self, application, union, coupling_factory=None):
         return MGINode(application=application, union=union, coupling_factory=coupling_factory)
+
+class FullStackBuilder(object):
+
+    def build(self, application, union, middleware_factory=AbstractMiddlewareFactory(), node_factory=MGINodeFactory()):
+
+        parent_application = application
+        for middleware_config_child, config  in union["middleware"].items():
+            parent_application = middleware_factory.build_middleware(config, parent_application)
+
+        return node_factory.build(parent_application, union)
+
+

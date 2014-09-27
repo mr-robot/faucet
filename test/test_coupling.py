@@ -2,106 +2,123 @@ from faucet import main
 
 __author__ = 'beast'
 import unittest
-import os, signal,time
-from multiprocessing import Process, Queue
-
-
-from faucet import utils
 from faucet.coupling.couplings import *
 
-class TestCoupling():
+from random import randint
 
+import beanstalkc
 
-    def __init__(self, env):
-        self.env = env
-        self.handler_list = []
-
-    def receive(self, message):
-        self.handler_list.append(message)
-        return True
-
-    def send(self, message):
-        self.handler_list.append(message)
-        return True
-
-
-class MockCoupling(Coupling):
-
-    def receive(self, uri):
-        return {"uri": uri}, None
-
-
-
-
-class MockCouplingFactory(object):
-
-    def build(self, config, role):
-        return MockCoupling(utils.ConfigStruct(**config[role]), role)
-
-
-
-def hard_shut(p):
-    os.killpg(p.pid, signal.SIGTERM)
-
-def start_receive(coupling):
-    coupling.receive()
-
-amqp_config = {"send":{
-                               "dispatch_type" : "amqp",
-                               "dsn" : "amqp://127.0.0.1:5555",
-                           },
-               "receive":{
-                               "dispatch_type" : "amqp",
-                               "dsn" : "amqp://127.0.0.1:5555",
-                           },
-}
 class TestCouplings(unittest.TestCase):
 
     def setUp(self):
         pass
 
-    def get_receive_config(self):
-        utils.import_from_sibing("../other")
-        import test_config
-
-        return test_config.imap_config
-
-    def get_send_config(self):
-        utils.import_from_sibing("../other")
-        import test_config
-
-        return test_config.smtp_config
 
 
+    def test_beanstalkd_coupling(self):
+
+        config = ConfigStruct(**{"dsn" : "beanstalk://127.0.0.1:11300", "timeout":10, "queue":"test-queue"})
+        role="send"
+        uri="test"
+
+        bs = BeanStalkCoupling(config=config, role=role, uri=uri)
+
+        role = "receive"
+
+        bs_2 = BeanStalkCoupling(config=config, role=role, uri=uri)
+
+        test_message = "test" + str(randint(0,1000))
+        env, message = bs.dispatch({},test_message)
+
+        self.assertTrue("job_id" in env)
+        self.assertTrue(env["job_id"] is not None)
+
+        job_id = env["job_id"]
 
 
-    def test_amqp_coupling(self):
-        received = []
 
-        def test_call_back(message):
-            received.append(message)
+        env, message = bs_2.receive()
+
+        bs_2.complete(env,None)
+
+        self.assertTrue("job_id" in env)
+        self.assertTrue(env["job_id"] is not None)
+
+        self.assertTrue("job_id" in env)
+
+        self.assertEquals(test_message, message.original_message_contents)
+
+        self.assertTrue(env["job_id"] == job_id)
+
+    def test_kafka_coupling(self):
+
+        config = ConfigStruct(**{"dsn" : "kafka://127.0.0.1:9092", "timeout":10, "topic":"test-queue"})
+        role="send"
+        uri="test"
+
+        kf = KafkaCoupling(config=config, role=role, uri=uri)
+
+        role = "receive"
+
+        kf_2 = KafkaCoupling(config=config, role=role, uri=uri)
+
+        test_message = "test" + str(randint(0,1000))
+        env, message = kf.dispatch({},test_message)
+
+        job_id = env["job_id"]
 
 
 
-        coupling = CouplingFactory().build(amqp_config, "test.amqp", "receive", test_call_back)
+        env, message = kf_2.receive()
+
+        self.assertEquals(test_message, message)
+
+    def test_kafka_coupling(self):
+
+        config = ConfigStruct(**{"dsn" : "kafka://127.0.0.1:9092", "timeout":10, "topic":"test-queue"})
+        role="send"
+        uri="test"
+
+        kf = KafkaCoupling(config=config, role=role, uri=uri)
+
+        role = "receive"
+
+        kf_2 = KafkaCoupling(config=config, role=role, uri=uri)
+
+        test_message = "test" + str(randint(0,1000))
+        env, message = kf.dispatch({},test_message)
+
+        job_id = env["job_id"]
 
 
-        p = Process(target=start_receive, args=(coupling))
-        p.run()
 
-        time.sleep(1)
+        env, message = kf_2.receive()
 
-
-        coupling = CouplingFactory().build(amqp_config, "test.amqp", "send", None)
-
-        coupling.dispatch("test")
+        self.assertEquals(test_message, message)
 
 
-        time.sleep(1)
+    def test_nsq_coupling(self):
 
-        self.assertEquals(len(received),1)
+        config = ConfigStruct(**{"dsn" : "nsq://127.0.0.1:9092", "timeout":10, "topic":"test-queue"})
+        role="send"
+        uri="test"
 
-        hard_shut(p)
+        nf = NSQCoupling(config=config, role=role, uri=uri)
+
+        role = "receive"
+
+        nf_2 = NSQCoupling(config=config, role=role, uri=uri)
+
+        test_message = "test" + str(randint(0,1000))
+        env, message = nf.dispatch({},test_message)
+
+        job_id = env["job_id"]
+
+
+
+        env, message = nf_2.receive()
+
+        self.assertEquals(test_message, message)
 
 
 

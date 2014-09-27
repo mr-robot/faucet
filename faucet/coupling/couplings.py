@@ -88,8 +88,13 @@ class Coupling(object):
             self.hostname = config.hostname
 
 
-        if "receive_callback" in config.__dict__:
-            self.receive_callback = config.receive_callback
+
+        if "timeout" in config.__dict__:
+            self.timeout = config.timeout
+
+
+        if "queue" in config.__dict__:
+            self.queue = config.queue
 
         if "io_loop" in config.__dict__:
             self.io_loop = config.io_loop
@@ -261,12 +266,12 @@ class ZeroMQCoupling(Coupling):
 
 
 class KafkaCoupling(Coupling):
-    def __init__(self, dispatch_config, uri, role="send", on_receive=None):
-        super(KafkaCoupling, self).__init__(dispatch_config, role)
+    def __init__(self, config, uri, role="send", on_receive=None):
+        super(KafkaCoupling, self).__init__(config, uri, role)
 
         if self.manage_imports():
 
-            self.kafka = kafka.KafkaClient(self.hostname+":"+self.port)
+            self.kafka = kafka.KafkaClient(self.hostname+":"+str(self.port))
 
             self.on_receive = on_receive
 
@@ -308,19 +313,21 @@ class KafkaCoupling(Coupling):
 
 
 class NSQCoupling(Coupling):
-    def __init__(self, dispatch_config, uri, role="send", on_receive=None):
-        super(NSQCoupling, self).__init__(dispatch_config, role)
+    def __init__(self, config, uri, role="send", on_receive=None):
+        super(NSQCoupling, self).__init__(config, role)
 
+
+    def get_reader(self, on_receive):
         if self.manage_imports():
-
-
-            if role == "send":
-                self.writer = nsq.Writer([self.hostname+":"+self.port])
-
-            elif role == "receive":
-                self.reader = nsq.Reader(message_handler=self.on_receive,
+            self.reader = nsq.Reader(message_handler=on_receive,
                 lookupd_http_addresses=[self.hostname+":"+self.port],
                 topic=self.topic, channel=self.channel, lookupd_poll_interval=15)
+
+    def get_writer(self):
+
+        self.writer = nsq.Writer([self.hostname+":"+self.port])
+
+
 
     def manage_imports(self):
         if module_exists("nsq"):
@@ -333,20 +340,16 @@ class NSQCoupling(Coupling):
 
         self.writer.pub(self.topic, message)
 
-    def on_receive(self, message):
-        self.receive(message)
-
-        return True
 
 
 
-    def receive(self, message=None):
+    def receive(self, on_receive):
+        reader = self.get_reader(on_receive)
 
         logging.info("Receiving")
-        if not message:
-            nsq.run()
-        else:
-            yield message
+
+        nsq.run()
+
 
 
 
@@ -371,7 +374,15 @@ class BeanStalkCoupling(Coupling):
 
         if self.manage_imports():
 
-            self.beanstalk = beanstalkc.Connection(host=self.hostname, port=self.port, connect_timeout=10)
+
+
+            self.beanstalk = beanstalkc.Connection(host=self.hostname, port=self.port, connect_timeout=self.timeout)
+
+            if hasattr(self, "queue"):
+                if role == SEND_ROLE:
+                    self.beanstalk.use(self.queue)
+                elif role == RECEIVE_ROLE:
+                    self.beanstalk.watch(self.queue)
 
         else:
             logging.error("No Beanstalk Library found")
@@ -380,7 +391,6 @@ class BeanStalkCoupling(Coupling):
 
         message = Message(job.body)
 
-        message.add_reference(self.name(), job.jid)
 
         return message
 
@@ -390,11 +400,15 @@ class BeanStalkCoupling(Coupling):
             return True
         return False
 
-    def dispatch(self, message):
+    def dispatch(self, env, message):
         logging.info("Dispatching")
-        return self.beanstalk.put(message)
+        if "queue" in env:
+            self.beanstalk.use(env["queue"])
+        env["job_id"] = self.beanstalk.put(message)
 
-    def receive(self):
+        return env, None
+
+    def receive(self, env={}):
 
         logging.info("Receiving")
         job = self.beanstalk.reserve()
@@ -403,13 +417,13 @@ class BeanStalkCoupling(Coupling):
 
             message = self.get_message(job)
 
-            return {"uri":self.uri},message
+            return {"uri":self.uri, "job_id": job.jid},message
         else:
             return {"uri":self.uri}, None
 
-    def complete(self, message):
+    def complete(self, env, message):
         logging.info("Deleting")
-        self.beanstalk.delete(message.ref[self.name()].jid)
+        self.beanstalk.delete(env["job_id"])
 
 
 class IMAPCoupling(Coupling):

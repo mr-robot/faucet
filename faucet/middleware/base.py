@@ -1,6 +1,12 @@
 __author__ = 'beast'
 
+__author__ = 'beast'
+
 import logging
+
+logger = logging.getLogger(__name__)
+
+
 
 class BaseMiddleware(object):
 
@@ -41,4 +47,5 @@ class SimpleLoggingMiddleware(BaseMiddleware):
 
     def complete(self, env, message):
         return self.server.complete(env, message)
+
 
