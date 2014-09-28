@@ -1,10 +1,11 @@
+from faucet.coupling.beanstalk import BeanStalkCoupling
+
 __author__ = 'mr-robot'
 
 import logging
 import urlparse
-import pickle
 
-from faucet.utils import module_exists, ConfigStruct, load_class
+from faucet.utils import module_exists, ConfigStruct
 from faucet.message import Message
 
 
@@ -14,10 +15,8 @@ ROLES = [SEND_ROLE, RECEIVE_ROLE]
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-
 if module_exists("pika"):
     import pika
-
 
 if module_exists("kafka"):
     import kafka
@@ -27,10 +26,6 @@ if module_exists("redis"):
 
 if module_exists("rq"):
     from rq import Queue
-
-if module_exists("beanstalkc"):
-    logging.info("Importing Beanstalk Lib")
-    import beanstalkc
 
 if module_exists("imbox"):
     logging.info("Importing Imbox Lib")
@@ -48,6 +43,7 @@ if module_exists("zmq"):
 if module_exists("nsq"):
     import nsq
 
+
 def work_container(message):
     pass
 
@@ -58,7 +54,7 @@ class DispatchConfig(object):
 
 
 class Coupling(object):
-    def __init__(self, config,uri, role):
+    def __init__(self, config, uri, role):
         self.config = {"raw": config}
         self.role = role
         self.uri = uri
@@ -87,18 +83,14 @@ class Coupling(object):
         if "hostname" in config.__dict__:
             self.hostname = config.hostname
 
-
-
         if "timeout" in config.__dict__:
             self.timeout = config.timeout
-
 
         if "queue" in config.__dict__:
             self.queue = config.queue
 
         if "io_loop" in config.__dict__:
             self.io_loop = config.io_loop
-
 
 
     def build(self):
@@ -147,9 +139,8 @@ class AMQPCoupling(Coupling):
         super(AMQPCoupling, self).__init__(dispatch_config, role)
 
         if self.manage_imports():
-
             self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                    host=self.hostname, port=self.port))
+                host=self.hostname, port=self.port))
             self.channel = self.connection.channel()
 
             self.channel.queue_declare(queue=self.queue, durable=True)
@@ -165,16 +156,16 @@ class AMQPCoupling(Coupling):
 
         logging.info("Dispatching")
         self.channel.basic_publish(exchange=self.exchange,
-                              routing_key=self.routing_key,
-                              body=message,
-                              properties=pika.BasicProperties(
-                                 delivery_mode = 2, # make message persistent
-                              ))
+                                   routing_key=self.routing_key,
+                                   body=message,
+                                   properties=pika.BasicProperties(
+                                       delivery_mode=2,  # make message persistent
+                                   ))
 
     def callback(self, ch, method, properties, body):
 
         logging.info("Received")
-        ch.basic_ack(delivery_tag = method.delivery_tag)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
         self.on_receive(body)
 
@@ -185,7 +176,7 @@ class AMQPCoupling(Coupling):
 
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(self.callback,
-                              queue=self.queue)
+                                   queue=self.queue)
 
         self.channel.start_consuming()
 
@@ -195,7 +186,6 @@ class AMQPCoupling(Coupling):
         logging.info("Receiving")
 
         self.connection.close()
-
 
 
 class ZeroMQCoupling(Coupling):
@@ -219,13 +209,10 @@ class ZeroMQCoupling(Coupling):
             if self.role == "receive":
                 self.zmq_socket = context.socket(zmq.REP)
 
-
                 self.zmq_socket.connect("tcp://" + self.hostname + ":" + str(self.port))
-
 
                 self.stream = ZMQStream(self.zmq_socket, self.loop)
                 self.stream.on_recv(self.receive)
-
 
                 self.loop.start()
 
@@ -242,20 +229,19 @@ class ZeroMQCoupling(Coupling):
 
             logging.info("Receiving")
 
-            return {"uri": self.uri},Message(message)
+            return {"uri": self.uri}, Message(message)
 
 
         else:
             message = self.zmq_socket.recv_multipart()
 
-            return {"uri": self.uri},Message(message)
+            return {"uri": self.uri}, Message(message)
 
 
     def dispatch(self, message):
         logging.info("Dispatching")
 
         self.zmq_socket.send_multipart(message)
-
 
 
     def manage_imports(self):
@@ -266,29 +252,28 @@ class ZeroMQCoupling(Coupling):
 
 
 class KafkaCoupling(Coupling):
-    def __init__(self, config, uri, role="send", on_receive=None):
+    def __init__(self, config, uri, role="send"):
         super(KafkaCoupling, self).__init__(config, uri, role)
 
         if self.manage_imports():
+            self.kafka = kafka.KafkaClient(self.hostname + ":" + str(self.port))
 
-            self.kafka = kafka.KafkaClient(self.hostname+":"+str(self.port))
-
-            self.on_receive = on_receive
-
-            if role == "send":
-                self.producer = kafka.SimpleProducer(self.kafka, batch_send=True,
-                          batch_send_every_n=20,
-                          batch_send_every_t=60)
-
-            elif role == "receive":
-                self.consumer = kafka.SimpleConsumer(self.kafka, self.group, self.topic)
 
     def manage_imports(self):
         if module_exists("kafka"):
             return True
         return False
 
-    def dispatch(self, message):
+    def get_producer(self):
+        self.producer = kafka.SimpleProducer(self.kafka, batch_send=True,
+                                             batch_send_every_n=20,
+                                             batch_send_every_t=60)
+
+    def get_consumer(self):
+        self.consumer = kafka.SimpleConsumer(self.kafka, self.group, self.topic)
+
+    def dispatch(self, env, message):
+        self.get_producer()
 
         logging.info("Dispatching")
 
@@ -296,6 +281,7 @@ class KafkaCoupling(Coupling):
 
 
     def receive(self):
+        self.get_consumer()
 
         logging.info("Receiving")
 
@@ -313,20 +299,22 @@ class KafkaCoupling(Coupling):
 
 
 class NSQCoupling(Coupling):
-    def __init__(self, config, uri, role="send", on_receive=None):
-        super(NSQCoupling, self).__init__(config, role)
+    def __init__(self, config, uri, role="send"):
+        super(NSQCoupling, self).__init__(config, uri, role)
+
+        self.topic = config.topic
+        self.channel = config.channel
 
 
     def get_reader(self, on_receive):
         if self.manage_imports():
             self.reader = nsq.Reader(message_handler=on_receive,
-                lookupd_http_addresses=[self.hostname+":"+self.port],
-                topic=self.topic, channel=self.channel, lookupd_poll_interval=15)
+                                     lookupd_http_addresses=[self.hostname + ":" + str(self.port)],
+                                     topic=self.topic, channel=self.channel, lookupd_poll_interval=15)
 
     def get_writer(self):
 
-        self.writer = nsq.Writer([self.hostname+":"+self.port])
-
+        self.writer = nsq.Writer([self.hostname + ":" + str(self.port)])
 
 
     def manage_imports(self):
@@ -334,13 +322,12 @@ class NSQCoupling(Coupling):
             return True
         return False
 
-    def dispatch(self, message):
+    def dispatch(self, env, message):
+        self.get_writer()
 
         logging.info("Dispatching")
 
         self.writer.pub(self.topic, message)
-
-
 
 
     def receive(self, on_receive):
@@ -349,8 +336,6 @@ class NSQCoupling(Coupling):
         logging.info("Receiving")
 
         nsq.run()
-
-
 
 
     def close(self):
@@ -366,64 +351,6 @@ class MQICoupling(Coupling):
 class GearmanCoupling(Coupling):
     def dispatch(self, message):
         pass
-
-
-class BeanStalkCoupling(Coupling):
-    def __init__(self, config, uri, role):
-        super(BeanStalkCoupling, self).__init__(config, uri, role)
-
-        if self.manage_imports():
-
-
-
-            self.beanstalk = beanstalkc.Connection(host=self.hostname, port=self.port, connect_timeout=self.timeout)
-
-            if hasattr(self, "queue"):
-                if role == SEND_ROLE:
-                    self.beanstalk.use(self.queue)
-                elif role == RECEIVE_ROLE:
-                    self.beanstalk.watch(self.queue)
-
-        else:
-            logging.error("No Beanstalk Library found")
-
-    def get_message(self, job):
-
-        message = Message(job.body)
-
-
-        return message
-
-
-    def manage_imports(self):
-        if module_exists("beanstalkc"):
-            return True
-        return False
-
-    def dispatch(self, env, message):
-        logging.info("Dispatching")
-        if "queue" in env:
-            self.beanstalk.use(env["queue"])
-        env["job_id"] = self.beanstalk.put(message)
-
-        return env, None
-
-    def receive(self, env={}):
-
-        logging.info("Receiving")
-        job = self.beanstalk.reserve()
-
-        if job:
-
-            message = self.get_message(job)
-
-            return {"uri":self.uri, "job_id": job.jid},message
-        else:
-            return {"uri":self.uri}, None
-
-    def complete(self, env, message):
-        logging.info("Deleting")
-        self.beanstalk.delete(env["job_id"])
 
 
 class IMAPCoupling(Coupling):
@@ -446,7 +373,7 @@ class IMAPCoupling(Coupling):
         # Message Folder
         # Message Regex - From, to,
 
-        #On Complete Behaviour
+        # On Complete Behaviour
 
 
     def manage_imports(self):
@@ -492,7 +419,7 @@ class SMTPCoupling(Coupling):
         # Message Folder
         # Message Regex - From, to,
 
-        #On Complete Behaviour
+        # On Complete Behaviour
 
 
     def manage_imports(self):
@@ -572,9 +499,26 @@ class FTPCoupling(Coupling):
         logging.info("Deleting")
 
 
+class BaseCouplingFactory(object):
+    def get_default_config(self):
+        return {}
+
+    def process_config(self, base_config, inbound_config):
+        base_config.update(inbound_config)
+
+        return base_config
+
+    def get_coupling_class(self):
+        return None
+
+    def build_coupling(self, config, uri):
+        config = self.process_config(self.get_default_config(), config)
+
+        coupling = self.get_coupling_class()(config, uri)
+        return coupling
+
+
 class CouplingFactory(object):
-
-
     def get_config_by_role(self, config, role):
         if hasattr(config, role):
             return ConfigStruct(**config.role)
