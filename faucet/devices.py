@@ -1,6 +1,8 @@
 __author__ = 'ClephaTi'
 
-import zmq, logging
+import logging
+
+import zmq
 
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)

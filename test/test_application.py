@@ -1,22 +1,14 @@
-from faucet import main
-
 __author__ = 'beast'
 import unittest
-from mock import MagicMock, patch
-import os, signal,time
-from multiprocessing import Process, Queue
 
+from faucet.main import MGINode, Application, Handler, HandlerFactory
 
-from faucet import utils
-from faucet.main import MGINode, MGINodeFactory, Application, Handler, HandlerFactory
-from faucet.coupling.couplings import CouplingFactory, Coupling
 
 class TestApplication(unittest.TestCase):
-
     def setUp(self):
-        self.test_union =  {"test":{"receive":{
-                                                                 "dispatch_type":"test",},
-                                    "handler":Handler
+        self.test_union = {"test": {"receive": {
+            "dispatch_type": "test", },
+                                    "handler": Handler
 
         }}
 
@@ -30,8 +22,6 @@ class TestApplication(unittest.TestCase):
 
         application.register_server(mock_node)
 
-
-
         self.assertEquals(application.server, mock_node)
 
 
@@ -44,28 +34,23 @@ class TestApplication(unittest.TestCase):
 
         application.register_server(mock_node)
 
-        return_value = ({"env":"dict", "uri":"test"},"Response Message")
+        return_value = ({"env": "dict", "uri": "test"}, "Response Message")
 
         mock_handler = MagicMock()
 
 
-        #Receive
+        # Receive
 
 
         handler = application.get_handler_for_uri("test")
 
-        handler.send(return_value[0],return_value[1])
+        handler.send(return_value[0], return_value[1])
 
-        mock_node.send.assert_called_with(return_value[0],return_value[1])
-
-
-
+        mock_node.send.assert_called_with(return_value[0], return_value[1])
 
 
     def test_basic_receive(self):
-
-
-        return_value = ({"env":"dict", "uri":"test"},"Response Message")
+        return_value = ({"env": "dict", "uri": "test"}, "Response Message")
 
         mock_handler = MagicMock(spec=Handler)
         mock_node = MagicMock(spec=MGINode)
@@ -78,9 +63,10 @@ class TestApplication(unittest.TestCase):
 
         application.register_server(mock_node)
 
-        application.receive(return_value[0],return_value[1])
+        application.receive(return_value[0], return_value[1])
 
-        mock_handler.receive.assert_called_with(return_value[0],return_value[1])
+        mock_handler.receive.assert_called_with(return_value[0], return_value[1])
+
 
 if __name__ == '__main__':
     unittest.main()

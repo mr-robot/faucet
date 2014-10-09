@@ -46,3 +46,14 @@ class GraphiteMiddleware(BaseMiddleware):
         return self.server.complete(env, message)
 
 
+    def on_send(self, env, result):
+
+        self.get_graphite(env["uri"], "on_send").send("count", 1)
+
+        return self.application.on_send(env, result)
+
+    def on_result(self, env, message):
+
+        self.get_graphite(env["uri"], "on_receive").send("count", 1)
+
+        return self.application.on_receive(env, message)

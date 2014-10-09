@@ -1,10 +1,8 @@
-from faucet import main
-
 __author__ = 'beast'
 import unittest
-from mock import MagicMock, patch
-from faucet.main import MGINode, MGINodeFactory, Application, Handler, HandlerFactory
-from faucet.middleware import BaseMiddleware, SimpleLoggingMiddleware, GraphiteMiddleware
+
+from faucet.main import MGINode, Application, Handler
+from faucet.middleware import BaseMiddleware, GraphiteMiddleware
 
 
 class TestMiddleware(unittest.TestCase):

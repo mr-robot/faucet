@@ -20,7 +20,7 @@ def run_workers():
         workers[route_name] = PipeWorkerFactory().build_worker(route_config, route_config["task"])
 
 
-    #Start Workers
+    # Start Workers
     for name, worker in workers.items():
         start_worker_process(worker)
 

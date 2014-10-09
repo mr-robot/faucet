@@ -6,19 +6,10 @@ from faucet.middleware.base import BaseMiddleware
 
 logger = logging.getLogger(__name__)
 
-if module_exists("raven"):
-    logging.info("Importing Raven Lib")
 
-    from raven.handlers.logging import SentryHandler
-
-    from raven.conf import setup_logging
-
-
-class SentryMiddleware(BaseMiddleware):
+class CryptographyMiddleware(BaseMiddleware):
     def __init__(self, *args, **kwargs):
-        handler = SentryHandler('http://public:secret@example.com/1')
-
-        setup_logging(handler)
+        pass
 
 
     def receive(self, env, message):
@@ -38,3 +29,4 @@ class SentryMiddleware(BaseMiddleware):
 
     def on_result(self, env, message):
         return self.application.on_receive(env, message)
+

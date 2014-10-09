@@ -1,9 +1,11 @@
+__author__ = 'beast'
+
 import logging
+
 from faucet.coupling.couplings import Coupling, SEND_ROLE, RECEIVE_ROLE, BaseCouplingFactory
 from faucet.message import Message
 from faucet.utils import module_exists
 
-__author__ = 'beast'
 
 if module_exists("beanstalkc"):
     logging.info("Importing Beanstalk Lib")

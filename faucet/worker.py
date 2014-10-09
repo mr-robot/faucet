@@ -3,10 +3,10 @@ import signal
 import sys
 import uuid
 from multiprocessing import Process
-
 import os
+
 from luigi import scheduler, worker
-from faucet.main import MGINode, Application, FullStackBuilder
+from faucet.main import MGINode, Application
 
 
 def sigterm_handler(_signo, _stack_frame):
@@ -87,7 +87,6 @@ class PipeWorker(object):
 
 
 class NodeWorker(object):
-
     def __init__(self, input_union, uri, coupling_factory=None):
 
         self.worker_id = unicode(uuid.uuid4())
@@ -98,7 +97,6 @@ class NodeWorker(object):
 
     def build(self, input_union):
         app = Application(union=input_union)
-
 
         server = MGINode(application=app, union=input_union)
 
@@ -117,6 +115,7 @@ class NodeWorker(object):
                 server.run(self.uri)
         finally:
             logging.info("Shutting down Worker")
+
 
 def run_worker(worker_obj):
     worker_obj.run()

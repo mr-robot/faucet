@@ -1,4 +1,7 @@
-import os, imp, importlib, sys
+import os
+import imp
+import importlib
+import sys
 
 
 def module_exists(module_name):
@@ -46,6 +49,7 @@ def load_class(full_class_string):
 
 def get_working_path(working_path, message_id):
     return os.path.join(working_path, ("%s_%s" % (message_id, ".tmp")))
+
 
 def import_from_sibing(path):
     sys.path.append(os.path.abspath(path))

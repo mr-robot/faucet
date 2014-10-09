@@ -1,16 +1,11 @@
 __author__ = 'beast'
 
-
-from faucet.utils import module_exists, ConfigStruct, load_class
+from faucet.utils import load_class
 
 from base import SimpleLoggingMiddleware
-from sentry import SentryMiddleware
-from graphite import GraphiteMiddleware
-
 
 
 class DictionaryMiddlewareFactory(object):
-
     def get_middleware(self, config, application):
 
         if "class" in config:
@@ -27,8 +22,8 @@ class DictionaryMiddlewareFactory(object):
         elif name == "sentry":
             return SimpleLoggingMiddleware(application)
 
-class AbstractMiddlewareFactory(object):
 
+class AbstractMiddlewareFactory(object):
     def __init__(self, factory=DictionaryMiddlewareFactory()):
         self.factory = factory
 
