@@ -27,10 +27,6 @@ if module_exists("redis"):
 if module_exists("rq"):
     from rq import Queue
 
-if module_exists("imbox"):
-    logging.info("Importing Imbox Lib")
-    import imbox
-
 if module_exists("envelopes"):
     logging.info("Importing Envelopes Lib")
     import envelopes
@@ -117,7 +113,7 @@ class RQCoupling(Coupling):
             self.q = Queue(connection=Redis())
         else:
 
-            logging.error("No Beanstalk Library found")
+            logging.error("No rq Library found")
 
     def manage_imports(self):
         if module_exists("redis"):
@@ -307,50 +303,6 @@ class GearmanCoupling(Coupling):
         pass
 
 
-class IMAPCoupling(Coupling):
-    def __init__(self, config, role):
-        super(IMAPCoupling, self).__init__(config, role)
-
-        if self.manage_imports():
-            self.build_coupling(config)
-
-        else:
-            logging.error("No  Library found")
-
-    def build_coupling(self, config):
-
-        self.imbox = imbox.Imbox(self.hostname,
-                                 username=self.username,
-                                 password=self.password,
-                                 ssl=config.is_ssl)
-
-        # Message Folder
-        # Message Regex - From, to,
-
-        # On Complete Behaviour
-
-
-    def manage_imports(self):
-        if module_exists("imbox"):
-            return True
-        return False
-
-    def dispatch(self, message):
-        logging.info("Dispatching")
-        return None
-
-    def receive(self):
-
-        logging.info("Receiving")
-
-        for message in self.imbox.messages(unread=True):
-            yield Message(message)
-
-
-    def complete(self, message):
-        logging.info("Deleting")
-
-        return True
 
 
 class SMTPCoupling(Coupling):
@@ -392,65 +344,6 @@ class SMTPCoupling(Coupling):
 
         return True
 
-
-class FileCoupling(Coupling):
-    def __init__(self, config, role):
-        super(FileCoupling, self).__init__(config, role)
-
-        if self.manage_imports():
-            pass
-
-        else:
-            logging.error("No  Library found")
-
-
-    def manage_imports(self):
-        if module_exists("beanstalkc"):
-            return True
-        return False
-
-    def dispatch(self, message):
-        logging.info("Dispatching")
-        return None
-
-    def receive(self):
-
-        logging.info("Receiving")
-
-        return None
-
-    def complete(self, message):
-        logging.info("Deleting")
-
-
-class FTPCoupling(Coupling):
-    def __init__(self, config, role):
-        super(FTPCoupling, self).__init__(config, role)
-
-        if self.manage_imports():
-
-            pass
-        else:
-            logging.error("No  Library found")
-
-
-    def manage_imports(self):
-        if module_exists("beanstalkc"):
-            return True
-        return False
-
-    def dispatch(self, message):
-        logging.info("Dispatching")
-        return None
-
-    def receive(self):
-
-        logging.info("Receiving")
-
-        return None
-
-    def complete(self, message):
-        logging.info("Deleting")
 
 
 class BaseCouplingFactory(object):
@@ -499,13 +392,8 @@ class CouplingFactory(object):
             return MQICoupling(config, uri, role)
         elif config.dispatch_type == "zmq":
             return ZeroMQCoupling(config, uri, role)
-        elif config.dispatch_type == "imap":
-            return IMAPCoupling(config, uri, role)
         elif config.dispatch_type == "smtp":
             return SMTPCoupling(config, uri, role)
-        elif config.dispatch_type == "file":
-            return FileCoupling(config, uri, role)
-        elif config.dispatch_type == "ftp":
-            return FTPCoupling(config, uri, role)
+
         else:
             raise Exception("No Matching Coupling Found")

@@ -1,3 +1,5 @@
+__author__ = 'beast'
+
 import logging
 import signal
 import sys
@@ -5,9 +7,10 @@ import uuid
 from multiprocessing import Process
 import os
 
-from luigi import scheduler, worker
-from faucet.main import MGINode, Application
+from faucet.node import MGINode
+from faucet.main import Application
 
+from faucet.utils import *
 
 def sigterm_handler(_signo, _stack_frame):
     # Raises SystemExit(0):
@@ -32,9 +35,7 @@ class PipeWorker(object):
         signal.signal(signal.SIGTERM, sigterm_handler)
 
     def configure_messaging(self, config, role):
-        self.pipe = ReceivePipe(config)
-
-        return self.pipe
+        return None
 
     def setup_working_path(self):
         self.working_path = os.path.join(os.getcwd(), "tmp", self.worker_id)
@@ -78,10 +79,7 @@ class PipeWorker(object):
     def execute(self, message):
         if self.task:
             task = self.task(message=message, working_path=self.working_path, destination=self.destination)
-            sch = scheduler.CentralPlannerScheduler()
-            w = worker.Worker(scheduler=sch)
-            w.add(task)
-            w.run()
+
 
             return True
 

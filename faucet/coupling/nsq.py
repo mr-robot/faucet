@@ -57,7 +57,12 @@ class NSQCoupling(Coupling):
 
 class NSQFactory(BaseCouplingFactory):
     def get_default_config(self):
-        return {}
+        return {"hostname":"127.0.0.1",
+                "port":14770,
+                "topic":"default",
+                "channel":"default",
+                "lookupd_poll_interval":15
+        }
 
     def get_coupling_class(self):
         return NSQCoupling

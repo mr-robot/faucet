@@ -3,6 +3,8 @@ import unittest
 from random import randint
 
 from faucet.coupling.couplings import *
+from faucet.coupling.beanstalk import BeanStalkCoupling
+from faucet.coupling.nsq import NSQCoupling
 
 
 class TestCouplings(unittest.TestCase):
