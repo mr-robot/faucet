@@ -14,6 +14,12 @@ def module_exists(module_name):
 
 
 def my_import(name):
+    """
+    Helper function to import a module based on a module name
+
+    :param name:
+    :return:
+    """
     mod = __import__(name)
     components = name.split('.')
     for comp in components[1:]:
@@ -34,7 +40,7 @@ def get_union():
 
 def load_class(full_class_string):
     """
-    dynamically load a class from a string
+    Helper function to dynamically load a class from a string
     from http://thomassileo.com/blog/2012/12/21/dynamically-load-python-modules-or-classes/
     """
 

@@ -8,7 +8,7 @@ from multiprocessing import Process
 import os
 
 from faucet.node import MGINode
-from faucet.main import Application
+from faucet.application import Application
 
 from faucet.utils import *
 
@@ -20,7 +20,7 @@ def sigterm_handler(_signo, _stack_frame):
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 
-class PipeWorker(object):
+class BaseWorker(object):
     def __init__(self, config, role, task_string):
 
         self.worker_id = unicode(uuid.uuid4())

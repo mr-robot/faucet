@@ -1,9 +1,8 @@
 __author__ = 'beast'
 
 import click
-from faucet.legacy.worker import PipeWorkerFactory, start_worker_process
-from faucet.legacy.utils import get_union
-
+from worker import start_worker_process, NodeWorker, NodeWorkerFactory
+from utils import get_union
 
 @click.group()
 def cli():
@@ -11,18 +10,26 @@ def cli():
 
 
 @click.command()
-def run_workers():
+def run_nodes():
     # Get Workflows from unions
     union_routes = get_union()
 
     workers = {}
     for route_name, route_config in union_routes.items():
-        workers[route_name] = PipeWorkerFactory().build_worker(route_config, route_config["task"])
+        workers[route_name] = NodeWorkerFactory().build_worker(route_config, route_config["task"])
 
 
     # Start Workers
     for name, worker in workers.items():
         start_worker_process(worker)
 
+@click.command()
+def validate_config():
+    # Get Workflows from unions
 
-cli.add_command(run_workers)
+    union_routes = get_union()
+
+    pass
+
+cli.add_command(validate_config)
+cli.add_command(run_nodes)
